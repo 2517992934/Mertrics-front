@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div class="workspace">
     <section class="hero-band">
       <div class="hero-copy">
@@ -460,4 +460,499 @@ const analyzeAll = async () => {
 }
 
 fillExample()
+</script> -->
+<template>
+  <div class="workspace">
+    <section class="hero-band">
+      <div class="hero-copy">
+        <p class="eyebrow">Enterprise Analysis Engine</p>
+        <h1>自动化度量工具设计实验平台</h1>
+        <p class="hero-text">
+          基于 JDT 解析引擎的深度源码扫描，支持 CK/LK 模型及项目成本精准估算。
+        </p>
+      </div>
+      <div class="hero-summary">
+        <div class="summary-chip">Source Scan</div>
+        <div class="summary-chip">Metrics Model</div>
+        <div class="summary-chip">Cost Estimate</div>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <aside class="control-panel">
+        <div class="panel-shell">
+          <div class="panel-head">
+            <h2>配置终端 / CONFIG</h2>
+            <button class="action-outline-btn" @click="fillExample">
+              <span class="icon">⚡</span> 载入标准示例
+            </button>
+          </div>
+
+          <div class="mode-switch">
+            <button class="mode-btn" :class="{ active: inputMode === 'code' }" @click="setInputMode('code')">代码粘贴</button>
+            <button class="mode-btn" :class="{ active: inputMode === 'upload' }" @click="setInputMode('upload')">文件上传</button>
+          </div>
+
+          <div class="form-scroll">
+            <div class="config-section">
+              <div class="section-tag">Design Context</div>
+              <div class="field-grid">
+                <div class="input-item">
+                  <label>参与者数</label>
+                  <input v-model.number="form.design.actors" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>用例数</label>
+                  <input v-model.number="form.design.useCases" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>类图类数</label>
+                  <input v-model.number="form.design.classes" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>子类数</label>
+                  <input v-model.number="form.design.subclasses" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>判定数</label>
+                  <input v-model.number="form.design.decisions" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>事务数</label>
+                  <input v-model.number="form.design.transactions" type="number" />
+                </div>
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-tag">Estimation Params</div>
+              <div class="field-grid compact">
+                <div class="input-item">
+                  <label>团队人数</label>
+                  <input v-model.number="form.estimate.teamMembers" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>人月成本</label>
+                  <input v-model.number="form.estimate.monthlyRate" type="number" />
+                </div>
+                <div class="input-item">
+                  <label>生产率系数</label>
+                  <input v-model.number="form.estimate.productivity" type="number" step="0.1" />
+                </div>
+              </div>
+            </div>
+
+            <div class="config-section no-border">
+              <div v-if="inputMode === 'code'">
+                <div class="inner-head">
+                  <span class="section-tag">Source Code</span>
+                  <button class="clear-btn" @click="clearCode">CLEAR ALL</button>
+                </div>
+                <textarea v-model="form.code" class="tech-editor" placeholder="在此粘贴 Java 源码..."></textarea>
+              </div>
+
+              <div v-else>
+                <div class="inner-head">
+                  <span class="section-tag">Source Files</span>
+                  <button class="clear-btn" @click="clearFiles">CLEAR ALL</button>
+                </div>
+                
+                <div class="file-upload-wrapper">
+                  <input type="file" multiple @change="handleFileChange" accept=".java" id="f-upload" class="hidden-input" />
+                  <label for="f-upload" class="upload-dropzone">
+                    <div class="upload-icon">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                      </svg>
+                    </div>
+                    <span class="upload-text">点击或拖拽 Java 文件至此</span>
+                    <span class="upload-hint">支持多选，仅限 .java 格式</span>
+                  </label>
+                </div>
+
+                <div class="file-tokens-container" v-if="selectedFiles.length">
+                  <div v-for="f in selectedFiles" :key="f.name" class="file-token">
+                    <span class="f-icon">📄</span>
+                    <span class="f-name">{{ f.name }}</span>
+                    <span class="f-size">{{ formatFileSize(f.size) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="run-btn" :disabled="loading" @click="analyzeAll">
+            <span v-if="!loading">RUN ANALYSIS</span>
+            <span v-else class="loader-text">SCANNING SYSTEM...</span>
+          </button>
+          <p v-if="errorMessage" class="error-log">{{ errorMessage }}</p>
+        </div>
+      </aside>
+
+      <main class="dashboard">
+        <div v-if="!result" class="idle-state">
+          <div class="radar"></div>
+          <p>等待系统扫描并输出度量报告</p>
+        </div>
+
+        <template v-else>
+          <div class="kpi-row">
+            <div class="kpi-card cyan">
+              <span class="label">工作量 (Effort)</span>
+              <div class="value">{{ result.estimation.Effort }}</div>
+              <small>Person-Hours</small>
+            </div>
+            <div class="kpi-card blue">
+              <span class="label">开发周期 (Time)</span>
+              <div class="value">{{ result.estimation.Time }}</div>
+              <small>Months</small>
+            </div>
+            <div class="kpi-card amber">
+              <span class="label">项目成本 (Cost)</span>
+              <div class="value">{{ result.estimation.Cost }}</div>
+              <small>Total CNY</small>
+            </div>
+            <div class="kpi-card coral">
+              <span class="label">人力配置 (People)</span>
+              <div class="value">{{ result.estimation.People }}</div>
+              <small>Config: {{ result.estimation.ConfiguredPeople }}</small>
+            </div>
+          </div>
+
+          <div class="metrics-bar">
+            <div class="stat"><span>LoC</span><strong>{{ result.overview.loc }}</strong></div>
+            <div class="stat"><span>Classes</span><strong>{{ result.overview.classes }}</strong></div>
+            <div class="stat"><span>Methods</span><strong>{{ result.overview.methods }}</strong></div>
+            <div class="stat"><span>Complexity</span><strong>{{ result.traditionalMetrics.AverageComplexity }}</strong></div>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-box">
+              <h3>CK 面向对象模型度量</h3>
+              <div class="metric-list">
+                <div v-for="item in ckRows" :key="item.key" class="metric-item">
+                  <div class="m-head">
+                    <span class="m-label">{{ item.label }}</span>
+                    <span class="m-val">{{ result.ckMetrics[item.key] }}</span>
+                  </div>
+                  <p class="m-desc">{{ item.note }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-box">
+              <h3>LK 与逻辑度量</h3>
+              <div class="metric-list">
+                <div v-for="item in lkRows" :key="item.key" class="metric-item">
+                  <div class="m-head">
+                    <span class="m-label">{{ item.label }}</span>
+                    <span class="m-val">{{ result.lkMetrics[item.key] }}</span>
+                  </div>
+                  <p class="m-desc">{{ item.note }}</p>
+                </div>
+                <div class="metric-item highlight">
+                  <div class="m-head">
+                    <span class="m-label">圈复杂度</span>
+                    <span class="m-val">{{ result.traditionalMetrics.CyclomaticComplexity }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="class-section">
+            <h3>类级明细 / Class Breakdown</h3>
+            <div class="class-cards">
+              <div v-for="item in result.classMetrics" :key="item.sourceFile + item.name" class="c-card">
+                <div class="c-header">
+                  <strong>{{ item.name }}</strong>
+                  <span class="path">{{ item.sourceFile }}</span>
+                </div>
+                <div class="c-body">
+                  <div class="mini-stat"><span>WMC</span>{{ item.WMC }}</div>
+                  <div class="mini-stat"><span>CBO</span>{{ item.CBO }}</div>
+                  <div class="mini-stat"><span>RFC</span>{{ item.RFC }}</div>
+                  <div class="mini-stat"><span>CC</span>{{ item.complexity }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </main>
+    </section>
+  </div>
+</template>
+
+<script setup>
+import { reactive, ref } from 'vue'
+import axios from 'axios'
+
+const exampleCode = `public class OrderService extends BaseService {
+    private OrderRepository repository;
+    private PaymentGateway paymentGateway;
+    private int retryCount;
+
+    @Override
+    public void execute() {
+        if (retryCount > 0 && repository != null) {
+            for (int i = 0; i < retryCount; i++) {
+                paymentGateway.pay();
+            }
+        }
+    }
+
+    public double calculateTotal(double amount, double discount) {
+        if (discount > 0) {
+            return amount - discount;
+        }
+        return amount;
+    }
+}
+
+class BaseService {
+    public void execute() {
+    }
+}
+
+class OrderRepository {
+}
+
+class PaymentGateway {
+    public void pay() {
+    }
+}`
+
+const inputMode = ref('code')
+const selectedFiles = ref([])
+const form = reactive({
+  code: '',
+  design: {
+    actors: 2,
+    useCases: 4,
+    classes: 4,
+    subclasses: 1,
+    decisions: 4,
+    transactions: 6,
+    entities: 3,
+  },
+  estimate: {
+    teamMembers: 4,
+    monthlyRate: 15000,
+    productivity: 1.0,
+  },
+})
+
+const loading = ref(false)
+const result = ref(null)
+const errorMessage = ref('')
+
+const ckRows = [
+  { key: 'WMC', label: 'WMC', note: '类方法规模与综合复杂程度' },
+  { key: 'DIT', label: 'DIT', note: '继承层次深度' },
+  { key: 'CBO', label: 'CBO', note: '类之间耦合程度' },
+  { key: 'RFC', label: 'RFC', note: '潜在响应集合规模' },
+  { key: 'LCOM', label: 'LCOM', note: '类内聚性水平' },
+  { key: 'NOC', label: 'NOC', note: '子类数量或扩展能力' },
+]
+
+const lkRows = [
+  { key: 'NOA', label: 'NOA', note: '属性数量' },
+  { key: 'NPM', label: 'NPM', note: '公开方法数量' },
+  { key: 'NIV', label: 'NIV', note: '实例变量数量' },
+  { key: 'NVO', label: 'NVO', note: '重写方法数量' },
+]
+
+const setInputMode = (mode) => {
+  inputMode.value = mode
+  errorMessage.value = ''
+}
+
+const fillExample = () => {
+  form.code = exampleCode
+  inputMode.value = 'code'
+}
+
+const clearCode = () => {
+  form.code = ''
+}
+
+const handleFileChange = (event) => {
+  selectedFiles.value = Array.from(event.target.files || []).filter((file) => file.name.endsWith('.java'))
+}
+
+const clearFiles = () => {
+  selectedFiles.value = []
+}
+
+const formatFileSize = (size) => {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const analyzeByCode = async () => {
+  const response = await axios.post('http://localhost:8080/api/analyze', {
+    code: form.code,
+    design: form.design,
+    estimate: form.estimate,
+  })
+  result.value = response.data
+}
+
+const analyzeByUpload = async () => {
+  const payload = new FormData()
+  selectedFiles.value.forEach((file) => payload.append('files', file))
+  payload.append('actors', String(form.design.actors))
+  payload.append('useCases', String(form.design.useCases))
+  payload.append('classes', String(form.design.classes))
+  payload.append('subclasses', String(form.design.subclasses))
+  payload.append('decisions', String(form.design.decisions))
+  payload.append('transactions', String(form.design.transactions))
+  payload.append('entities', String(form.design.entities))
+  payload.append('teamMembers', String(form.estimate.teamMembers))
+  payload.append('monthlyRate', String(form.estimate.monthlyRate))
+  payload.append('productivity', String(form.estimate.productivity))
+
+  const response = await axios.post('http://localhost:8080/api/analyze/upload', payload, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  result.value = response.data
+}
+
+const analyzeAll = async () => {
+  if (inputMode.value === 'code' && !form.code.trim()) {
+    errorMessage.value = '请先输入或载入 Java 代码样例。'
+    return
+  }
+  if (inputMode.value === 'upload' && selectedFiles.value.length === 0) {
+    errorMessage.value = '请先选择至少一个 .java 文件。'
+    return
+  }
+
+  errorMessage.value = ''
+  loading.value = true
+  try {
+    if (inputMode.value === 'code') {
+      await analyzeByCode()
+    } else {
+      await analyzeByUpload()
+    }
+  } catch (error) {
+    console.error(error)
+    errorMessage.value = '后端服务连接失败，请确认 Spring Boot 服务已运行在 8080 端口。'
+  } finally {
+    loading.value = false
+  }
+}
+
+fillExample()
 </script>
+
+<style scoped>
+.workspace { background-color: #0b1120; color: #f8fafc; min-height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+/* 标题区 */
+.hero-band { 
+  background: linear-gradient(135deg, #0f172a, #111827); 
+  padding: 40px 60px; border-bottom: 1px solid #1e293b;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.eyebrow { color: #2ec4b6; font-weight: bold; letter-spacing: 3px; font-size: 11px; text-transform: uppercase; }
+.hero-summary { display: flex; gap: 12px; }
+.summary-chip { background: rgba(46, 196, 182, 0.1); border: 1px solid rgba(46, 196, 182, 0.2); padding: 6px 16px; border-radius: 20px; font-size: 12px; color: #2ec4b6; }
+
+.main-grid { display: grid; grid-template-columns: 420px 1fr; gap: 30px; padding: 30px; }
+
+/* 控制面板 */
+.panel-shell { background: #1e293b; border-radius: 20px; padding: 26px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); }
+.panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.panel-head h2 { font-size: 14px; letter-spacing: 1px; color: #94a3b8; }
+
+/* 按钮统一色调：#2ec4b6 */
+.action-outline-btn {
+  background: transparent; border: 1px solid #2ec4b6; color: #2ec4b6;
+  padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  transition: all 0.3s; display: flex; align-items: center; gap: 6px;
+}
+.action-outline-btn:hover { background: rgba(46, 196, 182, 0.1); }
+
+.mode-switch { display: flex; background: #0f172a; padding: 4px; border-radius: 12px; margin-bottom: 24px; }
+.mode-btn { 
+  flex: 1; padding: 10px; border: none; background: transparent; color: #64748b; 
+  cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.2s;
+}
+.mode-btn.active { background: #2ec4b6; color: #0b1120; font-weight: 800; }
+
+.section-tag { color: #2ec4b6; font-size: 11px; font-weight: bold; margin-bottom: 16px; text-transform: uppercase; border-left: 2px solid #2ec4b6; padding-left: 8px; }
+
+/* 输入控件 */
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.input-item label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+.input-item input { 
+  width: 100%; background: #0f172a; border: 1px solid #334155; 
+  padding: 10px 14px; border-radius: 8px; color: white; transition: border-color 0.3s;
+}
+.input-item input:focus { border-color: #2ec4b6; outline: none; }
+
+/* 文件上传美化 */
+.file-upload-wrapper { margin-bottom: 20px; }
+.hidden-input { display: none; }
+.upload-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 30px; border: 2px dashed #334155; border-radius: 16px; cursor: pointer;
+  background: rgba(15, 23, 42, 0.5); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.upload-dropzone:hover { border-color: #2ec4b6; background: rgba(46, 196, 182, 0.05); box-shadow: 0 0 15px rgba(46, 196, 182, 0.1); }
+.upload-icon { margin-bottom: 12px; }
+.upload-text { color: #f8fafc; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.upload-hint { color: #64748b; font-size: 11px; }
+
+/* 文件列表 Token */
+.file-tokens-container { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; max-height: 150px; overflow-y: auto; padding-right: 4px; }
+.file-token {
+  display: flex; align-items: center; background: #0f172a; 
+  padding: 8px 12px; border-radius: 8px; border: 1px solid #334155;
+}
+.f-icon { margin-right: 10px; font-size: 14px; }
+.f-name { flex: 1; font-size: 12px; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-size { font-size: 10px; color: #64748b; font-family: monospace; }
+
+/* 代码编辑器及清除按钮 */
+.inner-head { display: flex; justify-content: space-between; align-items: center; }
+.clear-btn { background: transparent; border: none; color: #ef4444; font-size: 10px; font-weight: bold; cursor: pointer; padding: 4px 8px; }
+.tech-editor { 
+  width: 100%; height: 220px; background: #0f172a; border: 1px solid #334155;
+  border-radius: 12px; color: #2ec4b6; font-family: 'Fira Code', monospace; padding: 16px;
+}
+
+/* 主按钮 */
+.run-btn { 
+  width: 100%; padding: 18px; background: #2ec4b6; color: #0b1120; 
+  border: none; border-radius: 14px; font-weight: 800; font-size: 14px; cursor: pointer; margin-top: 24px;
+}
+.run-btn:disabled { background: #334155; color: #64748b; }
+
+/* KPI 与 结果区域 */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+.kpi-card { padding: 24px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); }
+.kpi-card.cyan { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
+.kpi-card.blue { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
+.kpi-card.amber { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
+.kpi-card.coral { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
+
+.kpi-card .value { font-size: 32px; font-weight: 800; margin: 10px 0; }
+
+.metrics-bar { background: #1e293b; padding: 24px; border-radius: 16px; display: flex; justify-content: space-around; margin-bottom: 30px; border: 1px solid #334155; }
+.stat strong { font-size: 24px; color: #2ec4b6; margin-left: 10px; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.detail-box { background: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #334155; }
+.detail-box h3 { font-size: 15px; color: #f8fafc; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+.detail-box h3::before { content: ''; width: 4px; height: 16px; background: #2ec4b6; border-radius: 2px; }
+.m-val { color: #2ec4b6; font-size: 18px; font-weight: 800; }
+
+.c-card { background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #334155; margin-bottom: 12px; }
+.c-header strong { color: #2ec4b6; }
+</style>
