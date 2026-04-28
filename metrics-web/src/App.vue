@@ -620,10 +620,10 @@ fillExample()
           </div>
 
           <div class="metrics-bar">
-            <div class="stat"><span>LoC</span><strong>{{ result.overview.loc }}</strong></div>
-            <div class="stat"><span>Classes</span><strong>{{ result.overview.classes }}</strong></div>
-            <div class="stat"><span>Methods</span><strong>{{ result.overview.methods }}</strong></div>
-            <div class="stat"><span>Complexity</span><strong>{{ result.traditionalMetrics.AverageComplexity }}</strong></div>
+            <div class="stat"><span>代码行数</span><strong>{{ result.overview.loc }}</strong></div>
+            <div class="stat"><span>类数量</span><strong>{{ result.overview.classes }}</strong></div>
+            <div class="stat"><span>方法数量</span><strong>{{ result.overview.methods }}</strong></div>
+            <div class="stat"><span>平均复杂度</span><strong>{{ result.traditionalMetrics.AverageComplexity }}</strong></div>
           </div>
 
           <div class="detail-grid">
@@ -660,25 +660,26 @@ fillExample()
             </div>
           </div>
 
-          <div class="class-section">
-            <h3>类级明细 / Class Breakdown</h3>
-            <div class="class-cards">
-              <div v-for="item in result.classMetrics" :key="item.sourceFile + item.name" class="c-card">
-                <div class="c-header">
-                  <strong>{{ item.name }}</strong>
-                  <span class="path">{{ item.sourceFile }}</span>
-                </div>
-                <div class="c-body">
-                  <div class="mini-stat"><span>WMC</span>{{ item.WMC }}</div>
-                  <div class="mini-stat"><span>CBO</span>{{ item.CBO }}</div>
-                  <div class="mini-stat"><span>RFC</span>{{ item.RFC }}</div>
-                  <div class="mini-stat"><span>CC</span>{{ item.complexity }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
         </template>
       </main>
+
+      <div v-if="result" class="class-section">
+        <h3>类级明细 / Class Breakdown</h3>
+        <div class="class-cards">
+          <div v-for="item in result.classMetrics" :key="item.sourceFile + item.name" class="c-card">
+            <div class="c-header">
+              <strong>{{ item.name }}</strong>
+              <span v-if="showSourceFile(item.sourceFile)" class="path">{{ item.sourceFile }}</span>
+            </div>
+            <div class="c-body">
+              <div class="mini-stat"><span>WMC</span>{{ item.WMC }}</div>
+              <div class="mini-stat"><span>CBO</span>{{ item.CBO }}</div>
+              <div class="mini-stat"><span>RFC</span>{{ item.RFC }}</div>
+              <div class="mini-stat"><span>CC</span>{{ item.complexity }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -790,6 +791,10 @@ const formatFileSize = (size) => {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
+const showSourceFile = (sourceFile) => {
+  return sourceFile && sourceFile !== 'InlineSnippet.java'
+}
+
 const analyzeByCode = async () => {
   const response = await axios.post('http://localhost:8080/api/analyze', {
     code: form.code,
@@ -864,6 +869,12 @@ fillExample()
 .summary-chip { background: rgba(46, 196, 182, 0.1); border: 1px solid rgba(46, 196, 182, 0.2); padding: 6px 16px; border-radius: 20px; font-size: 12px; color: #2ec4b6; }
 
 .main-grid { display: grid; grid-template-columns: 420px 1fr; gap: 30px; padding: 30px; }
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-width: 0;
+}
 
 /* 控制面板 */
 .panel-shell { background: #1e293b; border-radius: 20px; padding: 26px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); }
@@ -935,24 +946,178 @@ fillExample()
 .run-btn:disabled { background: #334155; color: #64748b; }
 
 /* KPI 与 结果区域 */
-.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-.kpi-card { padding: 24px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); }
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 0; }
+.kpi-card { padding: 22px 22px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.05); }
 .kpi-card.cyan { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
 .kpi-card.blue { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
 .kpi-card.amber { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
 .kpi-card.coral { border-top: 4px solid #2ec4b6; background: linear-gradient(135deg, #064e3b, #0b1120); }
 
-.kpi-card .value { font-size: 32px; font-weight: 800; margin: 10px 0; }
+.kpi-card .label { font-size: 12px; }
+.kpi-card .value { font-size: 29px; font-weight: 800; margin: 10px 0 8px; line-height: 1.1; }
+.kpi-card small { font-size: 11px; color: #94a3b8; }
 
-.metrics-bar { background: #1e293b; padding: 24px; border-radius: 16px; display: flex; justify-content: space-around; margin-bottom: 30px; border: 1px solid #334155; }
-.stat strong { font-size: 24px; color: #2ec4b6; margin-left: 10px; }
+.metrics-bar {
+  background: #1e293b;
+  padding: 22px;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 0;
+  border: 1px solid #334155;
+}
 
-.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-.detail-box { background: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #334155; }
-.detail-box h3 { font-size: 15px; color: #f8fafc; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+}
+
+.stat span {
+  font-size: 12px;
+  color: #94a3b8;
+  letter-spacing: 0;
+}
+
+.stat strong {
+  font-size: 23px;
+  color: #2ec4b6;
+  line-height: 1.1;
+}
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.detail-box { background: #1e293b; padding: 26px; padding-bottom: 38px; border-radius: 18px; border: 1px solid #334155; }
+.detail-box h3 { font-size: 15px; color: #f8fafc; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
 .detail-box h3::before { content: ''; width: 4px; height: 16px; background: #2ec4b6; border-radius: 2px; }
-.m-val { color: #2ec4b6; font-size: 18px; font-weight: 800; }
 
-.c-card { background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #334155; margin-bottom: 12px; }
+.metric-list {
+  display: grid;
+  gap: 28.5px;
+}
+
+.metric-item {
+  padding: 16px 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+}
+
+.metric-item.highlight {
+  border-color: rgba(46, 196, 182, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(46, 196, 182, 0.12);
+}
+
+.m-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.m-label {
+  font-size: 12px;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.m-val {
+  color: #2ec4b6;
+  font-size: 19px;
+  font-weight: 800;
+  min-width: 42px;
+  text-align: right;
+}
+
+.m-desc {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.class-section {
+  grid-column: 1 / -1;
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 20px;
+  border: 1px solid #334155;
+}
+
+.class-section h3 {
+  font-size: 15px;
+  color: #f8fafc;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.class-section h3::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  background: #2ec4b6;
+  border-radius: 2px;
+}
+
+.class-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.c-card {
+  background: #0f172a;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #334155;
+  min-height: 150px;
+  width: 100%;
+}
+
+.c-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
 .c-header strong { color: #2ec4b6; }
+
+.path {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.c-body {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mini-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.78);
+  color: #f8fafc;
+  text-align: center;
+  font-weight: 700;
+}
+
+.mini-stat span {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+}
 </style>
